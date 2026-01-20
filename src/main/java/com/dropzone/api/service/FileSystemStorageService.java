@@ -7,6 +7,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.InputStreamResource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
@@ -23,13 +25,16 @@ public class FileSystemStorageService implements StorageService {
 
     private final Path rootLocation; // The folder path: ./dropzone_uploads
     private final FileRepository fileRepository; // Our connection to DB
+    private final CipherService cipherService;
 
     // Constructor Injection (Best Practice)
     // Spring reads 'app.storage.location' from application.properties and injects it here
     public FileSystemStorageService(@Value("${app.storage.location}") String storageLocation,
-                                    FileRepository fileRepository) {
+                                    FileRepository fileRepository,
+                                    CipherService cipherService) {
         this.rootLocation = Paths.get(storageLocation);
         this.fileRepository = fileRepository;
+        this.cipherService = cipherService;
         init(); // Ensure the folder exists
     }
 
@@ -57,11 +62,21 @@ public class FileSystemStorageService implements StorageService {
         Path destinationFile = this.rootLocation.resolve(Paths.get(storageName))
                 .normalize().toAbsolutePath();
 
-        // 4. Save the File to Disk (The I/O operation)
-        // try-with-resources ensures the stream closes automatically
-        try (InputStream inputStream = file.getInputStream()) {
-            Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+        // --- ENCRYPTION LOGIC START ---
+
+        // 1. Generate a unique key for this file
+        javax.crypto.SecretKey key = cipherService.generateKey();
+
+        // 2. Stream: Input (Browser) -> Encryptor -> Output (File)
+        try (java.io.InputStream inputStream = file.getInputStream();
+             java.io.OutputStream outputStream = Files.newOutputStream(destinationFile); // Open file for writing
+             java.io.OutputStream encryptedStream = cipherService.encryptStream(outputStream, key)) { // Wrap it
+
+            // Manual Copy: Read from input, write to encrypted stream
+            inputStream.transferTo(encryptedStream);
         }
+
+        // --- ENCRYPTION LOGIC END ---
 
         // 5. Create the Metadata Object
         FileMetadata metadata = FileMetadata.builder()
@@ -74,6 +89,7 @@ public class FileSystemStorageService implements StorageService {
                 .downloadCount(0)
                 .uploadTime(LocalDateTime.now())
                 .expiryTime(LocalDateTime.now().plusMinutes(expiryMinutes))
+                .encryptionKey(cipherService.keyToString(key))
                 .build();
 
         // 6. Save Metadata to SQLite via Repository
@@ -87,14 +103,23 @@ public class FileSystemStorageService implements StorageService {
                 .orElseThrow(() -> new RuntimeException("File not found in DB: " + id));
 
         // Find file on disk using the UUID storageName, NOT the original filename
-        Path file = rootLocation.resolve(metadata.getStorageName());
-        Resource resource = new UrlResource(file.toUri());
-
-        if (resource.exists() || resource.isReadable()) {
-            return resource;
-        } else {
-            throw new RuntimeException("Could not read file: " + id);
+        Path filePath = rootLocation.resolve(metadata.getStorageName());
+        if (!Files.exists(filePath)) {
+            throw new RuntimeException("File not found on disk: " + id);
         }
+
+        // 1. Retrieve the Key
+        javax.crypto.SecretKey key = cipherService.stringToKey(metadata.getEncryptionKey());
+
+        // 2. Open the file from disk
+        java.io.InputStream fileStream = Files.newInputStream(filePath);
+
+        // 3. Wrap it in the Decryptor
+        java.io.InputStream decryptedStream = cipherService.decryptStream(fileStream, key);
+
+        // 4. Return as a Resource
+        // InputStreamResource tells Spring: "Don't look for a file path, just read this stream I'm giving you."
+        return new InputStreamResource(decryptedStream);
     }
 
     @Override
@@ -125,5 +150,10 @@ public class FileSystemStorageService implements StorageService {
 
         // 3. Save back to DB
         fileRepository.save(metadata);
+    }
+
+    @Override
+    public List<FileMetadata> getAllFiles() {
+        return fileRepository.findAll();
     }
 }

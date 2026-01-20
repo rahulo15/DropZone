@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/files")
@@ -30,6 +31,12 @@ public class FileController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "downloads", defaultValue = "1") int maxDownloads,
             @RequestParam(value = "minutes", defaultValue = "10") int expiryMinutes) throws IOException {
+
+        String fileName = file.getOriginalFilename();
+        assert fileName != null;
+        if (fileName.endsWith(".exe") || fileName.endsWith(".bat") || fileName.endsWith(".sh")) {
+            return ResponseEntity.badRequest().build();
+        }
 
         // Call the service to save the file
         FileMetadata metadata = storageService.store(file, maxDownloads, expiryMinutes);
@@ -64,5 +71,12 @@ public class FileController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + metadata.getOriginalFilename() + "\"")
                 .header(HttpHeaders.CONTENT_TYPE, metadata.getContentType())
                 .body(resource);
+    }
+
+    // 2. All files view Endpoint
+    // GET http://localhost:8080/admin/files
+    @GetMapping("/admin/list")
+    public List<FileMetadata> getAllFiles() {
+        return storageService.getAllFiles();
     }
 }

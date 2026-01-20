@@ -38,6 +38,8 @@ public class FileMetadata {
     private LocalDateTime uploadTime;
     private LocalDateTime expiryTime;
 
+    private String encryptionKey;
+
     // Helper method to check if file is dead
     public boolean isExpired() {
         return (downloadCount >= maxDownloads) || LocalDateTime.now().isAfter(expiryTime);

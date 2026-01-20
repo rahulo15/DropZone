@@ -34,10 +34,15 @@ public class FileCleanupService {
         System.out.println("🧹 Janitor is working... Checking for expired files.");
 
         // 1. Find files that are PAST their expiry time
-        List<FileMetadata> expiredFiles = fileRepository.findByExpiryTimeBefore(LocalDateTime.now());
+        List<FileMetadata> timeExpiredFiles = fileRepository.findByExpiryTimeBefore(LocalDateTime.now());
+        List<FileMetadata> limitExpiredFiles = fileRepository.findByExpiryLimit();
 
         // 2. Loop through and delete them
-        for (FileMetadata file : expiredFiles) {
+        for (FileMetadata file : timeExpiredFiles) {
+            deleteFile(file);
+        }
+
+        for (FileMetadata file : limitExpiredFiles) {
             deleteFile(file);
         }
     }
