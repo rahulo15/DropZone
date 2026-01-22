@@ -63,18 +63,35 @@ public class FileSystemStorageService implements StorageService {
         Path destinationFile = this.rootLocation.resolve(Paths.get(storageName))
                 .normalize().toAbsolutePath();
 
-        String contentType = file.getContentType();
-        boolean isImage = contentType != null && contentType.startsWith("image/");
+        String mimeType = file.getContentType();
+        if (mimeType == null) mimeType = "application/octet-stream"; // Safety check
+
+// Define what we SKIP (The "Fast Lane")
+        boolean isMedia = mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType.startsWith("audio/");
+
+// OPTIONAL: Add archives if you want
+ boolean isArchive = mimeType.equals("application/zip") || mimeType.equals("application/x-rar-compressed");
+        boolean shouldEncrypt = !isMedia && !isArchive;
         javax.crypto.SecretKey key = null;
-        if(!isImage) {
+        if(shouldEncrypt) {
             // --- ENCRYPTION LOGIC START ---
             // 1. Generate a unique key for this file
             key = cipherService.generateKey();
             // 2. Stream: Input (Browser) -> Encryptor -> Output (File)
-            try (java.io.InputStream inputStream = file.getInputStream();
-                 java.io.OutputStream outputStream = Files.newOutputStream(destinationFile); // Open file for writing
-                 java.io.OutputStream encryptedStream = cipherService.encryptStream(outputStream, key)) { // Wrap it
-                // Manual Copy: Read from input, write to encrypted stream
+            try (
+                    java.io.InputStream inputStream = file.getInputStream();
+
+                    // 1. Raw File Stream
+                    java.io.OutputStream fileOS = Files.newOutputStream(destinationFile);
+
+                    // 2. RAM BUFFER (The Speed Boost) - 64KB Buffer
+                    // This collects data in RAM before touching the disk
+                    java.io.OutputStream bufferedOS = new java.io.BufferedOutputStream(fileOS, 65536);
+
+                    // 3. Encryptor (Wraps the Buffer, not the raw file)
+                    java.io.OutputStream encryptedStream = cipherService.encryptStream(bufferedOS, key)
+            ) {
+                // Java's transferTo is smart, but now it feeds the buffer instead of the disk
                 inputStream.transferTo(encryptedStream);
             }
             // --- ENCRYPTION LOGIC END ---
@@ -98,8 +115,8 @@ public class FileSystemStorageService implements StorageService {
                 .uploadTime(LocalDateTime.now())
                 .expiryTime(LocalDateTime.now().plusMinutes(expiryMinutes))
                 .password(password)
-                .encryptionKey(isImage ? null : cipherService.keyToString(key))
-                .isEncrypted(!isImage)
+                .encryptionKey(shouldEncrypt ? cipherService.keyToString(key) : null)
+                .isEncrypted(shouldEncrypt)
                 .build();
         // 6. Save Metadata to SQLite via Repository
         return fileRepository.save(metadata);
@@ -117,20 +134,21 @@ public class FileSystemStorageService implements StorageService {
             throw new RuntimeException("File not found on disk: " + id);
         }
 
-        boolean isImage = !metadata.isEncrypted();
+        boolean wasEncrypted = metadata.isEncrypted();
 
-        // 1. Retrieve the Key
-        javax.crypto.SecretKey key = isImage ? null : cipherService.stringToKey(metadata.getEncryptionKey());
+        // 1. Retrieve Key
+        javax.crypto.SecretKey key = wasEncrypted ? cipherService.stringToKey(metadata.getEncryptionKey()) : null;
 
-        // 2. Open the file from disk
+        // 2. Create the fast pipeline
         java.io.InputStream fileStream = Files.newInputStream(filePath);
-        if(isImage) return new InputStreamResource(fileStream);
+        if(!wasEncrypted) return new InputStreamResource(fileStream);
 
-        // 3. Wrap it in the Decryptor
-        java.io.InputStream decryptedStream = cipherService.decryptStream(fileStream, key);
+        // 3. BUFFER READS (Read 64KB at a time from disk)
+        java.io.InputStream bufferedStream = new java.io.BufferedInputStream(fileStream, 65536);
 
-        // 4. Return as a Resource
-        // InputStreamResource tells Spring: "Don't look for a file path, just read this stream I'm giving you."
+        // 4. Decrypt the buffered data
+        java.io.InputStream decryptedStream = cipherService.decryptStream(bufferedStream, key);
+
         return new InputStreamResource(decryptedStream);
     }
 

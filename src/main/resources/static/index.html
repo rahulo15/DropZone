@@ -3,93 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DropZone | Secure File Share</title>
+    <title>DropZone | Secure Transfer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+
     <style>
+        :root {
+            --primary: #00ffa3;
+            --primary-hover: #00cc82;
+            --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #1a1a1a;
-            color: #ffffff;
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text-main);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .container {
-            background-color: #2d2d2d;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            width: 100%;
+            max-width: 420px;
             text-align: center;
-            width: 400px;
         }
-        h1 { margin-bottom: 1.5rem; color: #4CAF50; }
 
+        h1 {
+            margin: 0 0 1.5rem 0;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Upload Area */
         .upload-area {
-            border: 2px dashed #4CAF50;
-            padding: 2rem;
-            border-radius: 8px;
+            border: 2px dashed rgba(255,255,255,0.2);
+            padding: 2.5rem 1rem;
+            border-radius: 16px;
             cursor: pointer;
-            margin-bottom: 1rem;
-            transition: all 0.3s;
+            margin-bottom: 1.5rem;
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            overflow: hidden;
         }
-        .upload-area:hover { background-color: #383838; }
 
+        .upload-area:hover, .upload-area.drag-active {
+            border-color: var(--primary);
+            background: rgba(0, 255, 163, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            fill: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .file-info {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* Form Elements */
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.2rem;
             text-align: left;
+            position: relative;
         }
 
         label {
-            display: block;       /* Forces label to its own line */
-            margin-bottom: 8px;   /* Space between label and input */
-            font-weight: 500;
-            color: #ccc;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 400;
         }
 
-        input[type="password"],
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            width: 18px;
+            height: 18px;
+            fill: var(--text-muted);
+        }
+
+        input[type="password"], select, input[type="text"] {
+            width: 100%;
+            padding: 12px 12px 12px 40px; /* Space for icon */
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+        }
+
         select {
-            width: 100%;          /* Full Width */
-            padding: 10px;        /* Comfortable padding */
-            box-sizing: border-box; /* Ensures padding doesn't break width */
-            background-color: #383838;
-            border: 1px solid #555;
-            border-radius: 4px;
-            color: white;
-            font-size: 1rem;
+             appearance: none;
+             cursor: pointer;
         }
 
-        input[type="password"]:focus,
-        select:focus {
+        input:focus, select:focus {
             outline: none;
-            border-color: #4CAF50;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(0, 255, 163, 0.1);
         }
 
-        input[type="file"] { display: none; }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
+        /* Button */
+        .btn-main {
+            background: var(--primary);
+            color: #0f0c29;
             border: none;
-            padding: 12px 20px;
-            border-radius: 5px;
+            padding: 14px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 1rem;
+            font-weight: 600;
             width: 100%;
             margin-top: 10px;
-            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
-        button:hover { background-color: #45a049; }
 
+        .btn-main:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 255, 163, 0.3);
+        }
+
+        .btn-main:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* Results */
         #result {
             margin-top: 1.5rem;
-            padding: 1rem;
-            background-color: #383838;
-            border-radius: 5px;
-            display: none; /* Hidden by default */
-            word-break: break-all;
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            display: none;
+            animation: fadeIn 0.5s ease;
         }
-        a { color: #4CAF50; text-decoration: none; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .link-box {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .link-display {
+            flex-grow: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            color: var(--primary);
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .btn-copy {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            padding: 0 12px;
+            cursor: pointer;
+        }
+        .btn-copy:hover { background: rgba(255,255,255,0.2); }
+
+        #qrcode {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Utility classes for icons */
+        .svg-icon { width: 18px; height: 18px; fill: #a0a0a0; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;}
     </style>
 </head>
 <body>
@@ -98,70 +239,141 @@
     <h1>DropZone</h1>
 
     <div class="upload-area" id="dropArea" onclick="document.getElementById('fileInput').click()">
-        <p>Click to Select a File</p>
-        <input type="file" id="fileInput">
+        <svg class="upload-icon" viewBox="0 0 24 24">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+        </svg>
+        <p class="file-info" id="fileMsg">Click or Drag file to upload</p>
+        <input type="file" id="fileInput" style="display: none;">
     </div>
 
     <div class="form-group">
-        <label for="user_pass">Password:</label>
-        <input type="password" id="user_pass" name="password" placeholder="Optional security...">
+        <label for="user_pass">Password Protection</label>
+        <div class="input-wrapper">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            <input type="password" id="user_pass" name="password" placeholder="Optional security...">
+        </div>
     </div>
 
     <div class="form-group">
-        <label for="downloads">Self-Destruct after:</label>
-        <select id="downloads">
-            <option value="1">1 Download</option>
-            <option value="5">5 Downloads</option>
-            <option value="100">100 Downloads</option>
-        </select>
+        <label for="downloads">Self-Destruct Condition</label>
+        <div class="input-wrapper">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+            <select id="downloads">
+                <option value="1">Expire after 1 Download</option>
+                <option value="5">Expire after 5 Downloads</option>
+                <option value="100">Expire after 100 Downloads</option>
+            </select>
+        </div>
     </div>
 
-    <button onclick="uploadFile()">Generate Link</button>
+    <button class="btn-main" id="uploadBtn" onclick="uploadFile()">
+        <span>Generate Link</span>
+        <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+    </button>
 
     <div id="result">
-        <p>Your Secure Link:</p>
-        <a id="downloadLink" href="#" target="_blank">...</a>
-        <div id="qrcode" style="margin-top: 20px; display: flex; justify-content: center;"></div>
+        <p style="color:white; margin:0 0 10px 0; font-size:0.9rem;">Your Secure Link:</p>
+
+        <div class="link-box">
+            <div id="linkText" class="link-display">...</div>
+            <button class="btn-copy" onclick="copyToClipboard()" title="Copy to clipboard">
+                <svg style="width:16px;height:16px;fill:white" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            </button>
+        </div>
+
+        <div id="qrcode"></div>
+        <p style="margin-top:10px; font-size: 0.8rem; opacity: 0.7">Scan to download on mobile</p>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-    document.getElementById('fileInput').addEventListener('change', function() {
-        const fileNameDisplay = document.querySelector('#dropArea p');
-        const dropArea = document.getElementById('dropArea');
+    const dropArea = document.getElementById('dropArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileMsg = document.getElementById('fileMsg');
+    const resultDiv = document.getElementById('result');
+    const uploadBtn = document.getElementById('uploadBtn');
+    let generatedUrl = "";
 
-        if (this.files && this.files.length > 0) {
-            fileNameDisplay.textContent = "✅ Selected: " + this.files[0].name;
-            dropArea.style.borderColor = "#4CAF50";
-            dropArea.style.backgroundColor = "rgba(76, 175, 80, 0.1)";
-        }
+    // Drag & Drop Visuals
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
     });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight(e) { dropArea.classList.add('drag-active'); }
+    function unhighlight(e) { dropArea.classList.remove('drag-active'); }
+
+    dropArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+        handleFiles(files);
+    }
+
+    fileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+
+    function handleFiles(files) {
+        if (files && files.length > 0) {
+            fileMsg.innerHTML = `✅ <strong>${files[0].name}</strong><br><span style="font-size:0.8em; opacity:0.7">Ready to upload</span>`;
+            fileMsg.style.color = "var(--primary)";
+            dropArea.style.borderColor = "var(--primary)";
+        }
+    }
+
+    // Copy Functionality
+    function copyToClipboard() {
+        if(!generatedUrl) return;
+        navigator.clipboard.writeText(generatedUrl).then(() => {
+            const btn = document.querySelector('.btn-copy');
+            btn.style.background = "#00ffa3";
+            setTimeout(() => { btn.style.background = "rgba(255,255,255,0.1)"; }, 1500);
+        });
+    }
 
     async function fetchIp() {
         try {
-            const response = await fetch('/api/files/getIp', {
-                    method: 'GET',
-                });
-            const ip = response.text();
+            // Note: This assumes your backend has this endpoint.
+            // If testing locally without backend, it might fail, so we catch it.
+            const response = await fetch('/api/files/getIp', { method: 'GET' });
+            if(!response.ok) throw new Error("IP Fetch failed");
+            const ip = await response.text();
             return ip;
         } catch (error) {
-            console.error(error);
-            alert("Error fetching ip.");
+            console.warn("Could not fetch IP, defaulting to localhost");
+            return "localhost";
         }
     }
 
     async function uploadFile() {
-        const fileInput = document.getElementById('fileInput');
         const downloadSelect = document.getElementById('downloads');
-        const resultDiv = document.getElementById('result');
-        const linkTag = document.getElementById('downloadLink');
         const passwordInput = document.getElementById('user_pass');
 
         if(fileInput.files.length === 0) {
-            alert("Please select a file first!");
+            dropArea.style.borderColor = "#ff4d4d";
+            fileMsg.textContent = "⚠️ Please drag and drop a file first";
             return;
         }
+
+        // UI Loading State
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = `<span>Uploading...</span>`;
 
         const formData = new FormData();
         formData.append("file", fileInput.files[0]);
@@ -177,14 +389,13 @@
 
             if (response.ok) {
                 const data = await response.json();
-
                 const host = await fetchIp();
-                console.log(host, "host");
-                const fullUrl = "http://" + host + ":8080/f/" + data.id;
-                const normalUrl = "http://localhost:8080/f/" + data.id;
 
-                linkTag.href = normalUrl;
-                linkTag.textContent = normalUrl;
+                // Construct URLs
+                const fullUrl = `http://${host}:8080/f/${data.id}`;
+                generatedUrl = fullUrl; // Save for copy button
+
+                document.getElementById('linkText').textContent = fullUrl;
                 resultDiv.style.display = 'block';
 
                 const qrContainer = document.getElementById("qrcode");
@@ -192,18 +403,27 @@
 
                 new QRCode(qrContainer, {
                     text: fullUrl,
-                    width: 128,
-                    height: 128,
+                    width: 120,
+                    height: 120,
                     colorDark : "#000000",
                     colorLight : "#ffffff",
                     correctLevel : QRCode.CorrectLevel.H
                 });
             } else {
-                alert("Upload failed!");
+                alert("Upload failed! Server responded with error.");
             }
         } catch (error) {
             console.error(error);
-            alert("Error connecting to server.");
+            // Mocking success for demonstration if no server is running
+            // Remove this 'if' block in production
+            if(window.location.protocol === 'file:') {
+                 alert("API call failed (Expected if opening HTML directly).");
+            } else {
+                 alert("Error connecting to server.");
+            }
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = `<span>Generate Link</span><svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>`;
         }
     }
 </script>
