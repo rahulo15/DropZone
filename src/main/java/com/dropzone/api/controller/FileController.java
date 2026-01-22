@@ -78,7 +78,7 @@ public class FileController {
         // 3. Increment download count (The "Self-Destruct" counter)
         // Note: In a real app, this should be atomic/synchronized to prevent race conditions
         // but for now, we just call a service method to update DB.
-         storageService.incrementDownloadCount(id); // (We need to add this method!)
+        storageService.incrementDownloadCount(id); // (We need to add this method!)
 
         // 4. Return the file stream with correct headers
         return ResponseEntity.ok()

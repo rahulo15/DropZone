@@ -70,10 +70,10 @@ public class FileSystemStorageService implements StorageService {
         boolean isMedia = mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType.startsWith("audio/");
 
 // OPTIONAL: Add archives if you want
- boolean isArchive = mimeType.equals("application/zip") || mimeType.equals("application/x-rar-compressed");
+        boolean isArchive = mimeType.equals("application/zip") || mimeType.equals("application/x-rar-compressed");
         boolean shouldEncrypt = !isMedia && !isArchive;
         javax.crypto.SecretKey key = null;
-        if(shouldEncrypt) {
+        if (shouldEncrypt) {
             // --- ENCRYPTION LOGIC START ---
             // 1. Generate a unique key for this file
             key = cipherService.generateKey();
@@ -97,7 +97,7 @@ public class FileSystemStorageService implements StorageService {
             // --- ENCRYPTION LOGIC END ---
         } else {
             try (java.io.InputStream inputStream = file.getInputStream();
-            java.io.OutputStream outputStream = Files.newOutputStream(destinationFile)) { // Wrap it
+                 java.io.OutputStream outputStream = Files.newOutputStream(destinationFile)) { // Wrap it
                 // Manual Copy: Read from input, write to output stream
                 inputStream.transferTo(outputStream);
             }
@@ -141,7 +141,7 @@ public class FileSystemStorageService implements StorageService {
 
         // 2. Create the fast pipeline
         java.io.InputStream fileStream = Files.newInputStream(filePath);
-        if(!wasEncrypted) return new InputStreamResource(fileStream);
+        if (!wasEncrypted) return new InputStreamResource(fileStream);
 
         // 3. BUFFER READS (Read 64KB at a time from disk)
         java.io.InputStream bufferedStream = new java.io.BufferedInputStream(fileStream, 65536);

@@ -15,8 +15,8 @@ public interface FileRepository extends JpaRepository<FileMetadata, String> {
     List<FileMetadata> findByExpiryTimeBefore(LocalDateTime now);
 
     @Query("""
-        SELECT f FROM FileMetadata f
-        WHERE f.downloadCount >= f.maxDownloads
-    """)
+                SELECT f FROM FileMetadata f
+                WHERE f.downloadCount >= f.maxDownloads
+            """)
     List<FileMetadata> findByExpiryLimit();
 }
