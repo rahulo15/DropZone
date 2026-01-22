@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DropZone | Download</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background-color: #2d2d2d; padding: 2rem; border-radius: 12px; text-align: center; width: 350px; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
+        button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%; font-size: 1rem; }
+        button:hover { background-color: #45a049; }
+        .error { color: #ff6b6b; display: none; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🔒 Secure File</h2>
+    <p>This file is protected.</p>
+
+    <input type="password" id="password" placeholder="Enter Password (if any)">
+    <button onclick="downloadFile()">Unlock & Download</button>
+
+    <p id="errorMsg" class="error">Incorrect Password or Expired!</p>
+</div>
+
+<script>
+    function downloadFile() {
+        // 1. Get ID logic (keep your existing logic here)
+        const pathSegments = window.location.pathname.split('/').filter(s => s.length > 0);
+        const fileId = pathSegments[pathSegments.length - 1];
+
+        const password = document.getElementById('password').value;
+        const errorMsg = document.getElementById('errorMsg');
+
+        let verifyUrl = `/api/files/${fileId}/verify`;
+
+        if (password) {
+            verifyUrl += `?password=${encodeURIComponent(password)}`;
+        }
+
+        fetch(verifyUrl, { method: 'POST' })
+            .then(async response => {
+                if (response.status === 403) throw new Error("Incorrect Password");
+                if (response.status === 410) throw new Error("File Expired");
+                if (!response.ok) throw new Error("File not found");
+
+                let downloadUrl = `/api/files/${fileId}`;
+                if (password) {
+                    downloadUrl += `?password=${encodeURIComponent(password)}`;
+                }
+
+                window.location.href = downloadUrl;
+            })
+            .catch(err => {
+                console.error(err);
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            });
+    }
+</script>
+
+</body>
+</html>

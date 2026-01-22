@@ -40,6 +40,10 @@ public class FileMetadata {
 
     private String encryptionKey;
 
+    private String password;
+
+    private boolean isEncrypted;
+
     // Helper method to check if file is dead
     public boolean isExpired() {
         return (downloadCount >= maxDownloads) || LocalDateTime.now().isAfter(expiryTime);

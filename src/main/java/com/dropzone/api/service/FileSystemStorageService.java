@@ -17,6 +17,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 
@@ -47,7 +48,7 @@ public class FileSystemStorageService implements StorageService {
     }
 
     @Override
-    public FileMetadata store(MultipartFile file, int maxDownloads, int expiryMinutes) throws IOException {
+    public FileMetadata store(MultipartFile file, int maxDownloads, int expiryMinutes, String password) throws IOException {
         if (file.isEmpty()) {
             throw new RuntimeException("Failed to store empty file.");
         }
@@ -62,21 +63,28 @@ public class FileSystemStorageService implements StorageService {
         Path destinationFile = this.rootLocation.resolve(Paths.get(storageName))
                 .normalize().toAbsolutePath();
 
-        // --- ENCRYPTION LOGIC START ---
-
-        // 1. Generate a unique key for this file
-        javax.crypto.SecretKey key = cipherService.generateKey();
-
-        // 2. Stream: Input (Browser) -> Encryptor -> Output (File)
-        try (java.io.InputStream inputStream = file.getInputStream();
-             java.io.OutputStream outputStream = Files.newOutputStream(destinationFile); // Open file for writing
-             java.io.OutputStream encryptedStream = cipherService.encryptStream(outputStream, key)) { // Wrap it
-
-            // Manual Copy: Read from input, write to encrypted stream
-            inputStream.transferTo(encryptedStream);
+        String contentType = file.getContentType();
+        boolean isImage = contentType != null && contentType.startsWith("image/");
+        javax.crypto.SecretKey key = null;
+        if(!isImage) {
+            // --- ENCRYPTION LOGIC START ---
+            // 1. Generate a unique key for this file
+            key = cipherService.generateKey();
+            // 2. Stream: Input (Browser) -> Encryptor -> Output (File)
+            try (java.io.InputStream inputStream = file.getInputStream();
+                 java.io.OutputStream outputStream = Files.newOutputStream(destinationFile); // Open file for writing
+                 java.io.OutputStream encryptedStream = cipherService.encryptStream(outputStream, key)) { // Wrap it
+                // Manual Copy: Read from input, write to encrypted stream
+                inputStream.transferTo(encryptedStream);
+            }
+            // --- ENCRYPTION LOGIC END ---
+        } else {
+            try (java.io.InputStream inputStream = file.getInputStream();
+            java.io.OutputStream outputStream = Files.newOutputStream(destinationFile)) { // Wrap it
+                // Manual Copy: Read from input, write to output stream
+                inputStream.transferTo(outputStream);
+            }
         }
-
-        // --- ENCRYPTION LOGIC END ---
 
         // 5. Create the Metadata Object
         FileMetadata metadata = FileMetadata.builder()
@@ -89,9 +97,10 @@ public class FileSystemStorageService implements StorageService {
                 .downloadCount(0)
                 .uploadTime(LocalDateTime.now())
                 .expiryTime(LocalDateTime.now().plusMinutes(expiryMinutes))
-                .encryptionKey(cipherService.keyToString(key))
+                .password(password)
+                .encryptionKey(isImage ? null : cipherService.keyToString(key))
+                .isEncrypted(!isImage)
                 .build();
-
         // 6. Save Metadata to SQLite via Repository
         return fileRepository.save(metadata);
     }
@@ -108,11 +117,14 @@ public class FileSystemStorageService implements StorageService {
             throw new RuntimeException("File not found on disk: " + id);
         }
 
+        boolean isImage = !metadata.isEncrypted();
+
         // 1. Retrieve the Key
-        javax.crypto.SecretKey key = cipherService.stringToKey(metadata.getEncryptionKey());
+        javax.crypto.SecretKey key = isImage ? null : cipherService.stringToKey(metadata.getEncryptionKey());
 
         // 2. Open the file from disk
         java.io.InputStream fileStream = Files.newInputStream(filePath);
+        if(isImage) return new InputStreamResource(fileStream);
 
         // 3. Wrap it in the Decryptor
         java.io.InputStream decryptedStream = cipherService.decryptStream(fileStream, key);

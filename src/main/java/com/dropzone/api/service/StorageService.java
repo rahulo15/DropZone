@@ -9,7 +9,7 @@ import java.util.List;
 public interface StorageService {
 
     // 1. Save the file and return the Metadata (so the controller can give the user the URL)
-    FileMetadata store(MultipartFile file, int maxDownloads, int expiryMinutes) throws IOException;
+    FileMetadata store(MultipartFile file, int maxDownloads, int expiryMinutes, String password) throws IOException;
 
     // 2. Load the actual file bytes for downloading
     Resource loadAsResource(String id) throws IOException;
