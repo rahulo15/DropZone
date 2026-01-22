@@ -19,4 +19,6 @@ public interface FileRepository extends JpaRepository<FileMetadata, String> {
                 WHERE f.downloadCount >= f.maxDownloads
             """)
     List<FileMetadata> findByExpiryLimit();
+
+    boolean existsByStorageName(String name);
 }

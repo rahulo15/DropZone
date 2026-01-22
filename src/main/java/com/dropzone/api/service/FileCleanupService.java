@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,6 +61,38 @@ public class FileCleanupService {
 
         } catch (IOException e) {
             System.err.println("⚠️ Failed to delete file from disk: " + file.getStorageName());
+        }
+    }
+
+    // Run this once on startup, or periodically (e.g., every hour)
+    @Scheduled(fixedRate = 3600000) // 1 Hour
+    public void cleanOrphanFiles() {
+        System.out.println("🧹 Janitor: Checking for orphan files...");
+
+        File folder = new File(String.valueOf(rootLocation)); // Your upload folder path
+        File[] physicalFiles = folder.listFiles();
+
+        if (physicalFiles == null) return;
+
+        for (File file : physicalFiles) {
+            // Assuming your file names on disk MATCH the ID in the database
+            // or the 'storageName' in the database.
+            String filename = file.getName();
+
+            // Skip hidden system files (like .DS_Store on Mac)
+            if (filename.startsWith(".")) continue;
+
+            // CHECK: Does the database know about this file?
+            boolean existsInDb = fileRepository.existsByStorageName(filename);
+
+            if (!existsInDb) {
+                System.out.println("🗑️ Found Orphan File (No DB Record): " + filename);
+                if (file.delete()) {
+                    System.out.println("   -> Deleted.");
+                } else {
+                    System.err.println("   -> Failed to delete.");
+                }
+            }
         }
     }
 }
